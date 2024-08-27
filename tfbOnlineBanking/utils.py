@@ -1,2 +1,2 @@
-backend_link = "http://127.0.0.1:8000"
-frontend_link = "http://localhost:3000"
+backend_link = "https://tfbonlinebank-backend.onrender.com"
+frontend_link = "https://tfbonlinebank.netlify.app"

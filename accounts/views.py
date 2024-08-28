@@ -31,8 +31,8 @@ class RegisterView(APIView):
         if serializer.is_valid():
             print(serializer.validated_data)
             serializer.save()
-            return Response('Registration successful! please verify your email for activate  acccount',
-                            status=status.HTTP_201_CREATED)
+            return Response('Registration successful! please verify your email for activate  acccount', status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -46,6 +46,13 @@ def activate(request, uid64, token):
     if user is not None and default_token_generator.check_token(user, token) and user.is_active == False:
         user.is_active = True
         user.save()
+        # save history
+        Transaction.objects.create(
+            user=user,
+            amount=0,
+            type='Registration',
+            message='Registration successful',
+        )
         return HttpResponseRedirect(f'{frontend_link}/account/login?status=success')
     elif user is not None and default_token_generator.check_token(user, token) and user.is_active == True:
         return HttpResponseRedirect(f'{frontend_link}/account/login?status=already_verified')
@@ -113,7 +120,8 @@ class BalanceUpdateView(UpdateAPIView):
         Transaction.objects.create(
             user=self.request.user,
             amount=balance,
-            type='Deposited'
+            type='Deposited',
+            message=f'Deposited successfully amount of ${balance}',
         )
         return Response({'balance': profile.balance}, status=status.HTTP_200_OK)
 
@@ -135,6 +143,14 @@ class BalanceWithdrawView(UpdateAPIView):
         profile.withdraw += balance
         profile.save(
             update_fields=['balance', 'withdraw']
+        )
+
+        # save history
+        Transaction.objects.create(
+            user=self.request.user,
+            amount=balance,
+            type='Withdraw',
+            message=f'Withdraw successfully amount of ${balance}'
         )
 
         return Response({'balance': profile.balance}, status=status.HTTP_200_OK)
@@ -173,6 +189,14 @@ class BalanceTransferView(UpdateAPIView):
         receiver_profile.balance += balance
         receiver_profile.save(
             update_fields=['balance']
+        )
+
+        # save history
+        Transaction.objects.create(
+            user=self.request.user,
+            amount=balance,
+            type='Transfer',
+            message=f'Transfer successfully from {sender_profile.account_no} to {receiver_profile.account_no} amount of ${balance}'
         )
 
         return Response({'balance': balance}, status=status.HTTP_200_OK)
@@ -217,9 +241,10 @@ class ProfileUpdateView(APIView):
             user_serializer.save()
             profile_serializer.save()
             return Response({'message': 'Profile personal information updated successfully'}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+#transaction type
 class TransactionsView(ListAPIView):
     serializer_class = serializers.TransactionSerializer
     permission_classes = [IsAuthenticated]
@@ -227,3 +252,24 @@ class TransactionsView(ListAPIView):
     def get_queryset(self):
         user = self.request.user
         return Transaction.objects.filter(user=user, read=False).order_by('-id')
+
+
+#transaction type
+class TransactionsTypeView(ListAPIView):
+    serializer_class = serializers.TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        transaction_type = self.kwargs.get('type')
+        return Transaction.objects.filter(user=user, type=transaction_type).order_by('-id')
+
+
+#transaction all
+class TransactionsAllView(ListAPIView):
+    serializer_class = serializers.TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Transaction.objects.filter(user=user).order_by('-id')

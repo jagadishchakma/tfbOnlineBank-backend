@@ -7,6 +7,7 @@ class Transaction(models.Model):
     amount = models.IntegerField(default=0)
     type = models.CharField(max_length=250)
     read = models.BooleanField(default=False)
+    message = models.TextField()
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     image = models.ImageField(upload_to='accounts/images/', default='accounts/images/default_profile.png')

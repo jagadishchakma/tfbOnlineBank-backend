@@ -300,11 +300,13 @@ class LoansView(APIView):
             send_mail.send()
 
             # save history
+            amount = request.data['amount']
+            message = f'Your Loan request successfully send amount of {amount}.Pleas wait until admin approve your request.'
             Transaction.objects.create(
                 user=self.request.user,
-                amount=request.data['amount'],
+                amount = amount,
                 type='Loan',
-                message=f'Your Loan request successfully send amount of {request.data['amount']}.Pleas wait until admin approve your request.'
+                message=message
             )
 
             return Response('Loan request apply successfully.Wait until admin approve your request',

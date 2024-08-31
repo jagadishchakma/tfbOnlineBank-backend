@@ -1,15 +1,15 @@
-from django.shortcuts import render
+from django.core.mail import EmailMultiAlternatives
 from django.http import HttpResponseRedirect
+from django.template.loader import render_to_string
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
-from rest_framework.generics import UpdateAPIView, ListAPIView
+from rest_framework.generics import UpdateAPIView, ListAPIView, RetrieveAPIView, get_object_or_404
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from . import serializers
-from .models import Profile, Transaction
-from django.shortcuts import redirect
+from .models import Profile, Transaction, QuickTransfer
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.tokens import default_token_generator
 from rest_framework.permissions import IsAuthenticated
@@ -31,7 +31,8 @@ class RegisterView(APIView):
         if serializer.is_valid():
             print(serializer.validated_data)
             serializer.save()
-            return Response('Registration successful! please verify your email for activate  acccount', status=status.HTTP_201_CREATED)
+            return Response('Registration successful! please verify your email for activate  account',
+                            status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -273,3 +274,93 @@ class TransactionsAllView(ListAPIView):
     def get_queryset(self):
         user = self.request.user
         return Transaction.objects.filter(user=user).order_by('-id')
+
+
+#loan requested
+class LoansView(APIView):
+    serializer_class = serializers.LoansSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = request.data.copy()
+        data['user'] = request.user.id
+        serializer = self.serializer_class(data=data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid():
+            serializer.save()
+            # email verification setup
+            user = self.request.user
+            user = self.request.user
+            mail_subject = "Loan Request"
+            message = f"Your Loan request successfully send amount of ${request.data['amount']}.Pleas wait until admin approve your request."
+            mail_body = render_to_string('loan_confirm.html', {'message': message})
+            send_mail = EmailMultiAlternatives(mail_subject, '', to=[user.email])
+            send_mail.attach_alternative(mail_body, 'text/html')
+            send_mail.send()
+
+            # save history
+            Transaction.objects.create(
+                user=self.request.user,
+                amount=request.data['amount'],
+                type='Loan',
+                message=f'Your Loan request successfully send amount of {request.data['amount']}.Pleas wait until admin approve your request.'
+            )
+
+            return Response('Loan request apply successfully.Wait until admin approve your request',
+                            status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+#account search view
+class AccountSearchView(RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = Profile.objects.all()
+    serializer_class = serializers.ProfileSerializer
+
+    def get_object(self):
+        account_number = self.kwargs['account']  # Get the account number from the URL
+        # Adjust this filter logic according to your model's fields
+        return get_object_or_404(Profile, account_no=account_number)
+
+
+#quick transfer view
+class AccountQuickView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = serializers.QuickTransferSerializer
+
+    def post(self, request, *args, **kwargs):
+        receiver_account =  request.data['account']
+        receiver = Profile.objects.get(account_no=receiver_account)
+        data = request.data.copy()
+        data['sender'] = request.user.id
+        data['receiver'] = receiver.user.id
+        serializer = self.serializer_class(data=data, context={'request': request})
+        if not serializer.is_valid():
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid():
+
+            serializer.save()
+            return Response({'message': 'Quick transfer added successful!'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AccountQuickViewList(ListAPIView):
+    serializer_class = serializers.QuickTransferSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return QuickTransfer.objects.filter(sender=user).order_by('-id')
+
+class TransactionsReadUpdateView(APIView):
+    serializer_class = serializers.TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, *args, **kwargs):
+        user = self.request.user
+        notifications = Transaction.objects.filter(user=user, read=False)
+        notifications.update(read=True)
+        return Response({'message': 'Transaction updated successfully'}, status=status.HTTP_200_OK)

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.response import Response
 from django.contrib.auth.models import User
-from .models import Profile, Transaction
+from .models import Profile, Transaction, Loan, QuickTransfer
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
@@ -17,14 +17,24 @@ import random
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name']
+        fields = ['username', 'first_name', 'last_name']
 
 
 #user profile serializer
 class ProfileSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True);
+
     class Meta:
         model = Profile
         fields = '__all__'
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'profile']
 
 
 #user lists serializer
@@ -179,3 +189,27 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = '__all__'
+
+
+#loan requested serializers
+class LoansSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Loan
+        fields = '__all__'
+
+
+#Quick Transfer Serializers
+class QuickTransferSerializer(serializers.ModelSerializer):
+    sender = UserProfileSerializer(read_only=True)
+    receiver = UserProfileSerializer(read_only=True)
+
+    class Meta:
+        model = QuickTransfer
+        fields = ['sender', 'receiver']
+
+    def save(self):
+        sender = self.context['request'].user
+        receiver_id = self.context['request'].data.get('account')
+        receiver = Profile.objects.get(account_no=receiver_id).user
+        quick_transfer = QuickTransfer.objects.create(sender=sender, receiver=receiver)
+        return quick_transfer

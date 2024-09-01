@@ -114,8 +114,9 @@ class BalanceUpdateView(UpdateAPIView):
         if account_no != profile.account_no:
             return Response({'error': 'Account not match'}, status=400)
         profile.balance += balance
+        profile.deposit += balance
         profile.save(
-            update_fields=['balance']
+            update_fields=['balance','deposit']
         )
         #save history
         Transaction.objects.create(
@@ -212,7 +213,6 @@ class PasswordChangeView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response({'success': 'Password changed successfully!'}, status=status.HTTP_200_OK)
-        print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -304,7 +304,7 @@ class LoansView(APIView):
             message = f'Your Loan request successfully send amount of {amount}.Pleas wait until admin approve your request.'
             Transaction.objects.create(
                 user=self.request.user,
-                amount = amount,
+                amount=amount,
                 type='Loan',
                 message=message
             )
@@ -333,17 +333,15 @@ class AccountQuickView(APIView):
     serializer_class = serializers.QuickTransferSerializer
 
     def post(self, request, *args, **kwargs):
-        receiver_account =  request.data['account']
+        receiver_account = request.data['account']
         receiver = Profile.objects.get(account_no=receiver_account)
         data = request.data.copy()
         data['sender'] = request.user.id
         data['receiver'] = receiver.user.id
         serializer = self.serializer_class(data=data, context={'request': request})
         if not serializer.is_valid():
-
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         if serializer.is_valid():
-
             serializer.save()
             return Response({'message': 'Quick transfer added successful!'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -357,12 +355,33 @@ class AccountQuickViewList(ListAPIView):
         user = self.request.user
         return QuickTransfer.objects.filter(sender=user).order_by('-id')
 
+
 class TransactionsReadUpdateView(APIView):
     serializer_class = serializers.TransactionSerializer
     permission_classes = [IsAuthenticated]
 
     def put(self, request, *args, **kwargs):
+        id = self.kwargs.get('id')
         user = self.request.user
-        notifications = Transaction.objects.filter(user=user, read=False)
-        notifications.update(read=True)
+
+        try:
+            transaction = Transaction.objects.get(user=user, read=False, id=id)
+        except Transaction.DoesNotExist:
+            return Response({'message': 'Transaction updated successfully'}, status=status.HTTP_200_OK)
+
+        transaction.read = True
+        transaction.save(
+            update_fields=['read']
+        )
         return Response({'message': 'Transaction updated successfully'}, status=status.HTTP_200_OK)
+
+
+#transaction details view
+class TransactionDetailsView(RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = Transaction.objects.all()
+    serializer_class = serializers.TransactionSerializer
+
+    def get_object(self):
+        id = self.kwargs['id']
+        return get_object_or_404(Transaction, id=id, user=self.request.user)

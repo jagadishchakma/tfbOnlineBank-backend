@@ -54,7 +54,7 @@ def activate(request, uid64, token):
             type='Registration',
             message='Registration successful',
         )
-        return HttpResponseRedirect(f'{frontend_link}/account/login?status=success')
+        return HttpResponseRedirect(f'{frontend_link}/login?status=success')
     elif user is not None and default_token_generator.check_token(user, token) and user.is_active == True:
         return HttpResponseRedirect(f'{frontend_link}/account/login?status=already_verified')
     return HttpResponseRedirect(f'{frontend_link}/account/login?status=failure')

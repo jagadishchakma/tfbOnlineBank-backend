@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from . import serializers
-from .models import Profile, Transaction, QuickTransfer
+from .models import Profile, Transaction, QuickTransfer, Loan
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.tokens import default_token_generator
 from rest_framework.permissions import IsAuthenticated
@@ -275,6 +275,17 @@ class TransactionsAllView(ListAPIView):
         user = self.request.user
         return Transaction.objects.filter(user=user).order_by('-id')
 
+#loan all
+class LoansAllView(ListAPIView):
+    serializer_class = serializers.LoansSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Loan.objects.filter(user=user, status=True).order_by('-id')
+
+
+
 
 #loan requested
 class LoansView(APIView):
@@ -314,6 +325,21 @@ class LoansView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class LoanPayView(APIView):
+    permission_classes = [IsAuthenticated]
+    def put(self, request, *args, **kwargs):
+        loan_id = kwargs.get('id')
+        loan = Loan.objects.get(id=loan_id)
+        loan.pay = True
+        loan.save(
+            update_fields=['pay']
+        )
+        user_profile = self.request.user.profile
+        user_profile.balance -= loan.amount
+        user_profile.save(
+            update_fields = ['balance']
+        )
+        return Response({'success':'Loan pay successfully'})
 
 #account search view
 class AccountSearchView(RetrieveAPIView):

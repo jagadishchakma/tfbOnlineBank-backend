@@ -1,2 +1,2 @@
-backend_link = "https://tfbonlinebank-backend.onrender.com"
-frontend_link = "https://tfbonlinebank.netlify.app"
+backend_link = "https://tfb-online-bank-backend.vercel.app/"
+frontend_link = "https://tfbonlinebank.vercel.app/"

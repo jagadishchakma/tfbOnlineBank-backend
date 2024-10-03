@@ -195,10 +195,19 @@ class BalanceTransferView(UpdateAPIView):
 
         # save history
         Transaction.objects.create(
+            #sender transaction history
             user=self.request.user,
             amount=balance,
             type='Transfer',
-            message=f'Transfer successfully from {sender_profile.account_no} to {receiver_profile.account_no} amount of ${balance}'
+            message=f'Transfer successfully from {sender_profile.account_no} to {receiver_profile.account_no} amount of ${balance}',
+        )
+        # save history
+        Transaction.objects.create(
+            # sender transaction history
+            user=User.objects.get(profile__account_no=receiver_account_no),
+            amount=balance,
+            type='Transfer',
+            message=f'Transfer receive successfully from {sender_profile.account_no} amount of ${balance}',
         )
 
         return Response({'balance': balance}, status=status.HTTP_200_OK)

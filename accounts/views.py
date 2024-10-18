@@ -257,10 +257,8 @@ class ProfileUpdateView(APIView):
 #transaction type
 class TransactionsView(ListAPIView):
     serializer_class = serializers.TransactionSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        user = self.request.user
         return Transaction.objects.filter(user=user, read=False).order_by('-id')
 
 

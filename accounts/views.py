@@ -14,7 +14,7 @@ from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.tokens import default_token_generator
 from rest_framework.permissions import IsAuthenticated
 from tfbOnlineBanking.utils import frontend_link
-
+from libs.payment_request import payment_request
 
 #user list
 class UserListView(viewsets.ModelViewSet):
@@ -125,7 +125,14 @@ class BalanceUpdateView(UpdateAPIView):
             type='Deposited',
             message=f'Deposited successfully amount of ${balance}',
         )
-        return Response({'balance': profile.balance}, status=status.HTTP_200_OK)
+        url = payment_request(balance,self.request.user)
+        return Response({'balance': profile.balance, 'payment_url': url}, status=status.HTTP_200_OK)
+
+
+
+
+
+
 
 
 #user balance withdraw
@@ -259,7 +266,7 @@ class TransactionsView(ListAPIView):
     serializer_class = serializers.TransactionSerializer
 
     def get_queryset(self):
-        return Transaction.objects.filter(user=user, read=False).order_by('-id')
+        return Transaction.objects.filter(user=self.request.user, read=False).order_by('-id')
 
 
 #transaction type

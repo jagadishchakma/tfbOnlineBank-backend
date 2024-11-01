@@ -113,6 +113,19 @@ class BalanceUpdateView(UpdateAPIView):
         account_no = serializer.validated_data['account_no']
         if account_no != profile.account_no:
             return Response({'error': 'Account not match'}, status=400)
+        
+        url = payment_request(balance,self.request.user)
+        return Response({'payment_url': url}, status=status.HTTP_200_OK)
+
+
+#payment deposit success
+class  DepositSuccess(APIView):
+    def post(self, request, *args, **kwargs):
+        user_id = request.data.get('value_a')
+        balance = int(float(request.data.get('amount')))
+        tran_id = request.data.get('tran_id')
+        user = User.objects.get(id=user_id)
+        profile = user.profile
         profile.balance += balance
         profile.deposit += balance
         profile.save(
@@ -120,17 +133,24 @@ class BalanceUpdateView(UpdateAPIView):
         )
         #save history
         Transaction.objects.create(
-            user=self.request.user,
+            user=user,
             amount=balance,
             type='Deposited',
+            tran_id=tran_id,
             message=f'Deposited successfully amount of ${balance}',
         )
-        url = payment_request(balance,self.request.user)
-        return Response({'balance': profile.balance, 'payment_url': url}, status=status.HTTP_200_OK)
+        return HttpResponseRedirect(f'{frontend_link}/deposit?status=success')
 
 
+#payment deposit failed
+class DepositFailed(APIView):
+    def post(self, request, *args, **kwargs):
+        return HttpResponseRedirect(f'{frontend_link}/deposit?status=failed')
 
-
+#payment deposit failed
+class DepositCancelled(APIView):
+    def post(self, request, *args, **kwargs):
+        return HttpResponseRedirect(f'{frontend_link}/deposit?status=cancelled')
 
 
 

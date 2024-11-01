@@ -22,7 +22,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 #user profile serializer
 class ProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True);
+    user = UserSerializer(read_only=True)
 
     class Meta:
         model = Profile

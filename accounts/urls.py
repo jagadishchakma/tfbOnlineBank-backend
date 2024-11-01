@@ -27,4 +27,8 @@ urlpatterns = [
     path('pass_change/', views.PasswordChangeView.as_view(), name='pass_change'),
     path('upload/profile/', views.ProfileUploadView.as_view(), name='profile_upload'),
     path('update/profile/', views.ProfileUpdateView.as_view(), name='profile_update'),
+
+    path('deposit/success/', views.DepositSuccess.as_view(), name='deposit_success'),
+    path('deposit/failed/', views.DepositFailed.as_view(), name='deposit_failed'),
+    path('deposit/cancelled/', views.DepositCancelled.as_view(), name='deposit_cancelled'),
 ]

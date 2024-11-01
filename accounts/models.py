@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 
 class Transaction(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transcations')
+    tran_id = models.CharField(null=True,blank=True)
     date = models.DateTimeField(auto_now_add=True)
     amount = models.IntegerField(default=0)
     type = models.CharField(max_length=250)
